@@ -1,6 +1,8 @@
 package relay
 
 import (
+	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -107,16 +109,62 @@ func (r *Relay) Listen() error {
 }
 
 func hexSpy(w io.Writer, r io.Reader, pre string) {
-	bs := make([]byte, 1024)
-
 	for {
-		n, err := r.Read(bs)
+		p, err := ReadPacket(r)
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Fprintln(os.Stdout, pre)
-		fmt.Fprintln(os.Stdout, hex.Dump(bs[:n]))
 
-		w.Write(bs[:n])
+		//Dump
+		fmt.Fprintf(os.Stdout, "%s: channel %d, length %d\n", pre, p.Channel, p.Length)
+		fmt.Fprintln(os.Stdout, hex.Dump(p.Body))
+
+		p.WriteTo(w)
 	}
+}
+
+type Packet struct {
+	Channel      uint8
+	Length       uint32
+	Body, header []byte
+}
+
+func ReadPacket(r io.Reader) (*Packet, error) {
+	p := &Packet{
+		header: make([]byte, 5),
+	}
+
+	_, err := r.Read(p.header)
+	if err != nil {
+		return nil, err
+	}
+
+	p.Channel = p.header[4]
+	err = binary.Read(bytes.NewReader(p.header[:4]), binary.LittleEndian, &p.Length)
+	if err != nil {
+		return nil, err
+	}
+
+	p.Body = make([]byte, p.Length)
+	var tot uint32
+
+	for tot < p.Length {
+		n, err := r.Read(p.Body[tot:])
+		if err != nil && err != io.EOF {
+			return nil, err
+		}
+		tot += uint32(n)
+	}
+
+	return p, nil
+}
+
+//WriteTo sends a packet to a writer
+func (p *Packet) WriteTo(w io.Writer) error {
+	_, err := w.Write(p.header)
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(p.Body)
+	return err
 }
