@@ -1,8 +1,6 @@
 package relay
 
 import (
-	"bytes"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -25,7 +23,20 @@ type Relay struct {
 	cliAddr string
 }
 
-var serverIp = &net.UDPAddr{IP: net.IP([]byte{192, 168, 16, 12}), Port: UDPPort}
+//PacketType accounts for the possible packet types
+type PacketType uint8
+
+//Well-known packet types
+const (
+	KeepAlivePacket = PacketType(iota)
+	ConnecctionAcceptedPacket
+	ConnectionRefusedPacket
+	DataUpdatePacket
+	MapUpdatePacket
+	CommandPacket
+)
+
+var serverIP = &net.UDPAddr{IP: net.IP([]byte{192, 168, 16, 12}), Port: UDPPort}
 
 func (r *Relay) Listen() error {
 	laddr := &net.UDPAddr{IP: net.IPv4zero, Port: UDPPort}
@@ -61,7 +72,7 @@ func (r *Relay) Listen() error {
 	}
 	r.u = l
 
-	_, err = l.WriteTo([]byte(`{"cmd": "autodiscover"}`), serverIp)
+	_, err = l.WriteTo([]byte(`{"cmd": "autodiscover"}`), serverIP)
 	if err != nil {
 		return err
 	}
@@ -87,12 +98,12 @@ func (r *Relay) Listen() error {
 				l.WriteToUDP(bs[:n], r.cli.(*net.UDPAddr))
 			}
 		case r.cliAddr:
-			l.WriteToUDP(bs[:n], serverIp)
+			l.WriteToUDP(bs[:n], serverIP)
 		default:
 			if r.cli == nil {
 				r.cli = addr
 				r.cliAddr = addr.String()
-				l.WriteToUDP(bs[:n], serverIp)
+				l.WriteToUDP(bs[:n], serverIP)
 			}
 			fmt.Printf("r = %+v\n", r)
 		}
@@ -115,56 +126,12 @@ func hexSpy(w io.Writer, r io.Reader, pre string) {
 			log.Fatal(err)
 		}
 
-		//Dump
-		fmt.Fprintf(os.Stdout, "%s: channel %d, length %d\n", pre, p.Channel, p.Length)
-		fmt.Fprintln(os.Stdout, hex.Dump(p.Body))
+		if p.PacketType != KeepAlivePacket {
+			//Dump
+			fmt.Fprintf(os.Stdout, "%s: channel %d, length %d\n", pre, p.PacketType, p.Length)
+			fmt.Fprintln(os.Stdout, hex.Dump(p.Body))
+		}
 
 		p.WriteTo(w)
 	}
-}
-
-type Packet struct {
-	Channel      uint8
-	Length       uint32
-	Body, header []byte
-}
-
-func ReadPacket(r io.Reader) (*Packet, error) {
-	p := &Packet{
-		header: make([]byte, 5),
-	}
-
-	_, err := r.Read(p.header)
-	if err != nil {
-		return nil, err
-	}
-
-	p.Channel = p.header[4]
-	err = binary.Read(bytes.NewReader(p.header[:4]), binary.LittleEndian, &p.Length)
-	if err != nil {
-		return nil, err
-	}
-
-	p.Body = make([]byte, p.Length)
-	var tot uint32
-
-	for tot < p.Length {
-		n, err := r.Read(p.Body[tot:])
-		if err != nil && err != io.EOF {
-			return nil, err
-		}
-		tot += uint32(n)
-	}
-
-	return p, nil
-}
-
-//WriteTo sends a packet to a writer
-func (p *Packet) WriteTo(w io.Writer) error {
-	_, err := w.Write(p.header)
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(p.Body)
-	return err
 }
