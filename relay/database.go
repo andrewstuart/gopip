@@ -25,19 +25,24 @@ func (db *Database) Update(des []*DataEntry) {
 				db.parents[u.Ref] = de
 
 				//If in database
-				if e, ok := db.entries[u.Ref]; ok {
-					e.Name = u.Name
+				if child, ok := db.entries[u.Ref]; ok {
+					child.Name = u.Name
+					de.Children = append(de.Children, child)
 				} else {
-					db.entries[u.Ref] = &DataEntry{
+					child = &DataEntry{
 						ID:   u.Ref,
 						Name: u.Name,
 					}
+
+					db.entries[u.Ref] = child
+					de.Children = append(de.Children, child)
 				}
 			}
 		case ListEntry:
+			de.Name = "$LIST"
 			for _, ref := range de.Value.([]uint32) {
 				//Double pointer
-				db.parents[ref] = db.entries[db.parents[de.ID].ID]
+				db.parents[ref] = de
 			}
 		}
 

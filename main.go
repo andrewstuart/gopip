@@ -1,8 +1,28 @@
 package main
 
-import "github.com/andrewstuart/gopip/relay"
+import (
+	"log"
+
+	"github.com/andrewstuart/gopip/relay"
+)
 
 func main() {
-	r := &relay.Relay{}
-	r.Listen()
+	r, err := relay.NewClient()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	servers, err := r.Discover()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if len(servers) < 1 {
+		log.Fatal("No servers found")
+	}
+
+	err = r.Connect(servers[0])
+	if err != nil {
+		log.Fatal(err)
+	}
 }
