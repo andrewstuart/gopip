@@ -8,7 +8,8 @@ import (
 	"net"
 )
 
-var serverIP = &net.UDPAddr{IP: net.IP([]byte{192, 168, 16, 12}), Port: UDPPort}
+var serverIP = net.IP([]byte{192, 168, 16, 12})
+var serverUDP = net.UDPAddr{IP: serverIP, Port: UDPPort}
 
 //Relay listens for clients and connects them to the local server.
 func (r *Client) Relay() error {
@@ -62,12 +63,12 @@ func (r *Client) Relay() error {
 				l.WriteToUDP(bs[:n], r.cli.(*net.UDPAddr))
 			}
 		case r.cliAddr:
-			l.WriteToUDP(bs[:n], serverIP)
+			l.WriteToUDP(bs[:n], &serverUDP)
 		default:
 			if r.cli == nil {
 				r.cli = addr
 				r.cliAddr = addr.String()
-				l.WriteToUDP(bs[:n], serverIP)
+				l.WriteToUDP(bs[:n], &serverUDP)
 			}
 			fmt.Printf("r = %+v\n", r)
 		}
