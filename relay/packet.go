@@ -43,11 +43,11 @@ func ReadPacket(r io.Reader) (*Packet, error) {
 }
 
 //WriteTo sends a packet to a writer
-func (p *Packet) WriteTo(w io.Writer) error {
-	_, err := w.Write(p.header)
+func (p *Packet) WriteTo(w io.Writer) (int64, error) {
+	n, err := w.Write(p.header)
 	if err != nil {
-		return err
+		return int64(n), err
 	}
-	_, err = w.Write(p.Body)
-	return err
+	m, err := w.Write(p.Body)
+	return int64(n) + int64(m), err
 }

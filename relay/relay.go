@@ -1,46 +1,17 @@
 package relay
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net"
-	"os"
-)
-
-//Pip boy ports
-const (
-	UDPPort = 28000
-	TCPPort = 27000
-)
-
-//Relay listens and relays traffic
-type Relay struct {
-	u, t    net.Conn
-	cli     net.Addr
-	cliAddr string
-}
-
-//PacketType accounts for the possible packet types
-type PacketType uint8
-
-//Well-known packet types
-const (
-	KeepAlivePacket = PacketType(iota)
-	ConnecctionAcceptedPacket
-	ConnectionRefusedPacket
-	DataUpdatePacket
-	MapUpdatePacket
-	CommandPacket
 )
 
 var serverIP = &net.UDPAddr{IP: net.IP([]byte{192, 168, 16, 12}), Port: UDPPort}
 
-func (r *Relay) Listen() error {
-	laddr := &net.UDPAddr{IP: net.IPv4zero, Port: UDPPort}
-
+//Relay listens for clients and connects them to the local server.
+func (r *Client) Relay() error {
 	go func() {
 		tcl, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.IPv4zero, Port: TCPPort})
 		if err != nil {
@@ -66,16 +37,9 @@ func (r *Relay) Listen() error {
 		}
 	}()
 
-	l, err := net.ListenUDP("udp4", laddr)
-	if err != nil {
-		return err
-	}
-	r.u = l
+	log.Println(r.Discover())
 
-	_, err = l.WriteTo([]byte(`{"cmd": "autodiscover"}`), serverIP)
-	if err != nil {
-		return err
-	}
+	l := r.u
 
 	bs := make([]byte, 1024)
 	for {
@@ -113,11 +77,9 @@ func (r *Relay) Listen() error {
 			}
 		}
 	}
-
-	io.Copy(os.Stdout, l)
-
-	return nil
 }
+
+var db = make(map[uint32]*DataEntry, 65000)
 
 func hexSpy(w io.Writer, r io.Reader, pre string) {
 	for {
@@ -125,13 +87,42 @@ func hexSpy(w io.Writer, r io.Reader, pre string) {
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		if p.PacketType != KeepAlivePacket {
-			//Dump
-			fmt.Fprintf(os.Stdout, "%s: channel %d, length %d\n", pre, p.PacketType, p.Length)
-			fmt.Fprintln(os.Stdout, hex.Dump(p.Body))
-		}
-
 		p.WriteTo(w)
+
+		if p.PacketType == DataUpdatePacket {
+
+			for ct := 0; ct < len(p.Body); {
+				d, n, err := UnmarshalDataEntry(p.Body[ct:])
+				if err != nil {
+					log.Println("Error unmarshalling", err)
+					fmt.Printf("d = %+v\n", d)
+					break
+				}
+
+				if d.Type == 8 {
+					v := d.Value.(InsRemove)
+					for _, ins := range v.Insert {
+						db[ins.Ref].Name = ins.Name
+					}
+				}
+
+				if _, ok := db[d.ID]; !ok {
+					db[d.ID] = d
+				} else {
+					db[d.ID].Value = d.Value
+				}
+
+				if db[d.ID].Name == "TimeHour" {
+					v := db[d.ID].Value.(float32)
+					hComp := int(v)
+					mComp := int((v - float32(hComp)) * 60)
+					fmt.Printf("%d:%d\n", hComp, mComp)
+				} else {
+					log.Println(db[d.ID])
+				}
+
+				ct += n
+			}
+		}
 	}
 }
