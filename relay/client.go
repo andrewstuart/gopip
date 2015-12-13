@@ -64,11 +64,6 @@ func (c *Client) Connect(s Server) error {
 
 			for _, d := range des {
 				fmt.Printf("d = %+v\n", d)
-				if d.Children != nil {
-					for _, child := range d.Children {
-						fmt.Printf("child = %+v\n", child)
-					}
-				}
 			}
 		}
 	}

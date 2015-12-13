@@ -24,11 +24,10 @@ const (
 
 //DataEntry is a type that encapsulates the
 type DataEntry struct {
-	Type     uint8
-	ID       uint32
-	Name     string
-	Value    interface{}
-	Children []*DataEntry
+	Type  uint8
+	ID    uint32
+	Name  string
+	Value interface{}
 }
 
 //PipByteOrder is the binary endianness of integers in the pip protocol
