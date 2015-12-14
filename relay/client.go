@@ -1,6 +1,7 @@
 package relay
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -47,6 +48,8 @@ func (c *Client) Connect(s Server) error {
 		return err
 	}
 
+	var dbPrinted bool
+
 	var p *Packet
 	for {
 		p, err = ReadPacket(conn)
@@ -63,8 +66,23 @@ func (c *Client) Connect(s Server) error {
 			c.db.Update(des)
 
 			for _, d := range des {
-				fmt.Printf("d = %+v\n", d)
+				if d.Type == ModifyEntry {
+					printJson(c, d.ID)
+				}
+			}
+
+			if !dbPrinted {
+				printJson(c, 0)
+				dbPrinted = true
 			}
 		}
 	}
+}
+
+func printJson(c *Client, i uint32) {
+	bs, err := json.MarshalIndent(c.db.ToJSON(i), "", "  ")
+	if err != nil {
+		return
+	}
+	fmt.Println(string(bs))
 }
