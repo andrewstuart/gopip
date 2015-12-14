@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"sort"
+	"strconv"
 )
 
 //Client listens and relays traffic
@@ -53,6 +55,11 @@ func (c *Client) Connect(s Server) error {
 	var p *Packet
 	for {
 		p, err = ReadPacket(conn)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
 		switch p.PacketType {
 		case KeepAlivePacket:
 			p.WriteTo(conn)
@@ -65,24 +72,71 @@ func (c *Client) Connect(s Server) error {
 
 			c.db.Update(des)
 
-			for _, d := range des {
-				if d.Type == ModifyEntry {
-					printJson(c, d.ID)
-				}
-			}
+			myInventory := make([]InventoryItem, 0, 10)
 
 			if !dbPrinted {
-				printJson(c, 0)
+				for _, list := range getItem(c, 0, "Inventory").(map[string]interface{}) {
+					bs, err := json.Marshal(list)
+					if err != nil {
+						continue
+					}
+
+					var inv []InventoryItem
+					err = json.Unmarshal(bs, &inv)
+					if err != nil {
+						continue
+					}
+
+					myInventory = append(myInventory, inv...)
+
+				}
+				myI := Inventory(myInventory)
+				sort.Sort(&myI)
+				for _, item := range myI {
+					fmt.Printf("%s\t%f\n", item.Name, item.Info.Value/item.Info.Weight)
+				}
+
 				dbPrinted = true
+			} else {
+				for _, d := range des {
+					if d.Type == ModifyEntry {
+						printJson(c, d.ID)
+					}
+				}
 			}
 		}
 	}
 }
 
-func printJson(c *Client, i uint32) {
-	bs, err := json.MarshalIndent(c.db.ToJSON(i), "", "  ")
+func getItem(c *Client, base uint32, props ...string) interface{} {
+	v := c.db.ToJSON(base)
+
+	for _, p := range props {
+		switch v1 := v.(type) {
+		case map[string]interface{}:
+			if v1[p] == nil {
+				break
+			}
+			v = v1[p]
+		case []interface{}:
+			if i, err := strconv.Atoi(p); err == nil && i < len(v1) {
+				v = v1[i]
+				continue
+			}
+			break
+		}
+	}
+
+	return v
+}
+
+func printJson(c *Client, i uint32, props ...string) {
+	v := getItem(c, i, props...)
+
+	bs, err := json.Marshal(v)
 	if err != nil {
 		return
 	}
+
 	fmt.Println(string(bs))
 }
