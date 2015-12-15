@@ -6,23 +6,21 @@ import (
 	"os"
 
 	"github.com/andrewstuart/gopip/client"
+	"github.com/andrewstuart/gopip/proto"
 )
 
 func main() {
-	r, err := relay.NewClient()
-	if err != nil {
-		log.Fatal(err)
-	}
+	c := client.Client{}
 
 	if len(os.Args) > 1 {
 		ip := net.ParseIP(os.Args[1])
-		err = r.Connect(relay.Server{IP: ip})
+		err := c.Connect(proto.Server{IP: ip})
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	servers, err := r.Discover()
+	servers, err := proto.Discover()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -31,7 +29,7 @@ func main() {
 		log.Fatal("No servers found")
 	}
 
-	err = r.Connect(servers[0])
+	err = c.Connect(servers[0])
 	if err != nil {
 		log.Fatal(err)
 	}

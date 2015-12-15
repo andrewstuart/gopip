@@ -1,4 +1,4 @@
-package relay
+package proto
 
 import (
 	"encoding/json"
@@ -26,10 +26,20 @@ var bcAddr = &net.UDPAddr{IP: net.IPv4bcast, Port: UDPPort}
 const AutoDiscover string = `{"cmd": "autodiscover"}`
 
 //Discover returns a list of servers and their status
-func (c *Client) Discover() ([]Server, error) {
-	_, err := c.u.WriteToUDP([]byte(AutoDiscover), bcAddr)
+func Discover() ([]Server, error) {
+	servers := make([]Server, 0, 1)
+
+	laddr := &net.UDPAddr{IP: net.IPv4zero, Port: UDPPort}
+
+	l, err := net.ListenUDP("udp4", laddr)
 	if err != nil {
-		return nil, err
+		return servers, err
+	}
+	defer l.Close()
+
+	_, err = l.WriteToUDP([]byte(AutoDiscover), bcAddr)
+	if err != nil {
+		return servers, err
 	}
 
 	errC := make(chan error)
@@ -37,7 +47,7 @@ func (c *Client) Discover() ([]Server, error) {
 
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
-		return nil, fmt.Errorf("error discovering local ip addresses: %v", err)
+		return servers, fmt.Errorf("error discovering local ip addresses: %v", err)
 	}
 
 	localIPs := make([]net.IP, len(addrs))
@@ -52,10 +62,20 @@ func (c *Client) Discover() ([]Server, error) {
 	}
 
 	go func() {
+		defer close(errC)
+		defer close(srvC)
+
 		bs := make([]byte, 1024)
 	readLoop:
 		for {
-			n, from, err := c.u.ReadFromUDP(bs)
+			n, from, err := l.ReadFromUDP(bs)
+			if err != nil {
+				select {
+				case errC <- err:
+				case <-time.After(10 * time.Millisecond):
+				}
+				return
+			}
 
 			for _, ip := range localIPs {
 				//Ignore local address
@@ -91,8 +111,6 @@ func (c *Client) Discover() ([]Server, error) {
 		}
 	}()
 
-	servers := make([]Server, 0, 1)
-
 	for {
 		select {
 		case <-time.After(250 * time.Millisecond):
@@ -103,5 +121,4 @@ func (c *Client) Discover() ([]Server, error) {
 			return servers, err
 		}
 	}
-
 }

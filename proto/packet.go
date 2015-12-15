@@ -1,4 +1,4 @@
-package relay
+package proto
 
 import (
 	"bytes"
@@ -6,12 +6,27 @@ import (
 	"io"
 )
 
+//PacketType accounts for the possible packet types
+type PacketType uint8
+
+//Well-known packet types
+const (
+	KeepAlivePacket = PacketType(iota)
+	ConnecctionAcceptedPacket
+	ConnectionRefusedPacket
+	DataUpdatePacket
+	MapUpdatePacket
+	CommandPacket
+)
+
+//Packet is the PIPProtocol wire format
 type Packet struct {
 	PacketType   PacketType
 	Length       uint32
 	Body, header []byte
 }
 
+//ReadPacket returns a packet from an io.Reader.
 func ReadPacket(r io.Reader) (*Packet, error) {
 	p := &Packet{
 		header: make([]byte, 5),

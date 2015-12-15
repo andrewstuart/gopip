@@ -1,6 +1,7 @@
-package relay
+package client
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,56 +9,35 @@ import (
 	"net"
 	"sort"
 	"strconv"
+
+	"github.com/andrewstuart/gopip/pipdb"
+	"github.com/andrewstuart/gopip/proto"
 )
 
 //Client listens and relays traffic
 type Client struct {
-	u          *net.UDPConn
 	tCli, tSrv *net.TCPConn
 	cli        net.Addr
 	cliAddr    string
-	db         proto.Database
+	db         pipdb.Database
 }
 
-func NewClient() (*Client, error) {
-	c := Client{}
-	laddr := &net.UDPAddr{IP: net.IPv4zero, Port: UDPPort}
-
-	l, err := net.ListenUDP("udp4", laddr)
-	if err != nil {
-		return nil, err
-	}
-	c.u = l
-
-	return &c, nil
-}
-
-//PacketType accounts for the possible packet types
-type PacketType uint8
-
-//Well-known packet types
-const (
-	KeepAlivePacket = PacketType(iota)
-	ConnecctionAcceptedPacket
-	ConnectionRefusedPacket
-	DataUpdatePacket
-	MapUpdatePacket
-	CommandPacket
-)
-
-func (c *Client) Connect(s Server) error {
-	conn, err := net.Dial("tcp4", fmt.Sprintf("%s:%d", s.IP, TCPPort))
+//Connect receives a server and connects to it
+func (c *Client) Connect(s proto.Server) error {
+	conn, err := net.Dial("tcp4", fmt.Sprintf("%s:%d", s.IP, proto.TCPPort))
 	if err != nil {
 		return err
 	}
 
 	var dbPrinted bool
 
-	var p *Packet
+	var p *proto.Packet
 	for {
-		p, err = ReadPacket(conn)
+		p, err = proto.ReadPacket(conn)
 		if err != nil {
 			if err == io.EOF {
+				log.Println("Connection closed by server. Last packet follows")
+				log.Println(hex.Dump(p.Body))
 				defer c.Connect(s)
 				break
 			}
@@ -66,10 +46,10 @@ func (c *Client) Connect(s Server) error {
 		log.Println(p.PacketType, p.Length)
 
 		switch p.PacketType {
-		case KeepAlivePacket:
+		case proto.KeepAlivePacket:
 			p.WriteTo(conn)
-		case DataUpdatePacket:
-			des, err := UnmarshalDataEntries(p.Body)
+		case proto.DataUpdatePacket:
+			des, err := proto.UnmarshalDataEntries(p.Body)
 			if err != nil {
 				log.Println(err)
 				continue
@@ -77,7 +57,7 @@ func (c *Client) Connect(s Server) error {
 
 			c.db.Update(des)
 
-			myInventory := make([]InventoryItem, 0, 10)
+			myInventory := make([]pipdb.InventoryItem, 0, 10)
 
 			if !dbPrinted {
 				for _, list := range getItem(c, 0, "Inventory").(map[string]interface{}) {
@@ -86,7 +66,7 @@ func (c *Client) Connect(s Server) error {
 						continue
 					}
 
-					var inv []InventoryItem
+					var inv []pipdb.InventoryItem
 					err = json.Unmarshal(bs, &inv)
 					if err != nil {
 						continue
@@ -95,7 +75,7 @@ func (c *Client) Connect(s Server) error {
 					myInventory = append(myInventory, inv...)
 
 				}
-				myI := Inventory(myInventory)
+				myI := pipdb.Inventory(myInventory)
 				sort.Sort(&myI)
 				for _, item := range myI {
 					fmt.Printf("%s\t%f\n", item.Name, item.Info.Value/item.Info.Weight)
@@ -104,8 +84,8 @@ func (c *Client) Connect(s Server) error {
 				dbPrinted = true
 			} else {
 				for _, d := range des {
-					if d.Type == ModifyEntry {
-						printJson(c, d.ID)
+					if d.Type == proto.ModifyEntry {
+						printJSON(c, d.ID)
 					}
 				}
 			}
@@ -115,7 +95,7 @@ func (c *Client) Connect(s Server) error {
 }
 
 func getItem(c *Client, base uint32, props ...string) interface{} {
-	v := c.db.ToJSON(base)
+	v := c.db.ToTree(base)
 
 	for _, p := range props {
 		switch v1 := v.(type) {
@@ -136,7 +116,7 @@ func getItem(c *Client, base uint32, props ...string) interface{} {
 	return v
 }
 
-func printJson(c *Client, i uint32, props ...string) {
+func printJSON(c *Client, i uint32, props ...string) {
 	v := getItem(c, i, props...)
 
 	bs, err := json.Marshal(v)
