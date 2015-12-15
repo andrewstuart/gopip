@@ -3,6 +3,7 @@ package relay
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"sort"
@@ -56,9 +57,13 @@ func (c *Client) Connect(s Server) error {
 	for {
 		p, err = ReadPacket(conn)
 		if err != nil {
-			log.Println(err)
-			continue
+			if err == io.EOF {
+				defer c.Connect(s)
+				break
+			}
 		}
+
+		log.Println(p.PacketType, p.Length)
 
 		switch p.PacketType {
 		case KeepAlivePacket:
@@ -106,6 +111,7 @@ func (c *Client) Connect(s Server) error {
 			}
 		}
 	}
+	return nil
 }
 
 func getItem(c *Client, base uint32, props ...string) interface{} {

@@ -1,8 +1,8 @@
 package relay
 
 import (
-	"bytes"
 	"encoding/json"
+	"fmt"
 	"net"
 	"time"
 )
@@ -35,14 +35,33 @@ func (c *Client) Discover() ([]Server, error) {
 	errC := make(chan error)
 	srvC := make(chan Server)
 
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return nil, fmt.Errorf("error discovering local ip addresses: %v", err)
+	}
+
+	localIPs := make([]net.IP, len(addrs))
+
+	for i, addr := range addrs {
+		switch addr := addr.(type) {
+		case *net.IPAddr:
+			localIPs[i] = addr.IP
+		case *net.IPNet:
+			localIPs[i] = addr.IP
+		}
+	}
+
 	go func() {
 		bs := make([]byte, 1024)
+	readLoop:
 		for {
 			n, from, err := c.u.ReadFromUDP(bs)
 
-			//Ignore local address
-			if bytes.Equal([]byte(from.IP), []byte{192, 168, 16, 15}) {
-				continue
+			for _, ip := range localIPs {
+				//Ignore local address
+				if from.IP.Equal(ip) {
+					continue readLoop
+				}
 			}
 
 			if err != nil {
