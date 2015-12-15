@@ -15,8 +15,8 @@ type Client struct {
 	u          *net.UDPConn
 	tCli, tSrv *net.TCPConn
 	cli        net.Addr
-	db         Database
 	cliAddr    string
+	db         proto.Database
 }
 
 func NewClient() (*Client, error) {

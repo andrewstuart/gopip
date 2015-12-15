@@ -5,7 +5,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/andrewstuart/gopip/relay"
+	"github.com/andrewstuart/gopip/client"
 )
 
 func main() {
