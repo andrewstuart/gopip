@@ -7,8 +7,10 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 	"sort"
 	"strconv"
+	"text/tabwriter"
 
 	"github.com/andrewstuart/gopip/pipdb"
 	"github.com/andrewstuart/gopip/proto"
@@ -73,11 +75,16 @@ func (c *Client) Connect(s proto.Server) error {
 					myInventory = append(myInventory, inv...)
 
 				}
-				myI := pipdb.Inventory(myInventory)
-				sort.Sort(&myI)
-				for _, item := range myI {
-					fmt.Printf("%s\t%f\n", item.Name, item.Info.Value/item.Info.Weight)
+				inv := pipdb.Inventory{myInventory, weightedValue}
+				sort.Sort(&inv)
+
+				tw := tabwriter.NewWriter(os.Stdout, 2, 2, 3, ' ', 0)
+
+				for _, item := range inv.I {
+					fmt.Fprintf(tw, "%s\t%f\n", item.Name, weightedValue(item))
 				}
+
+				tw.Flush()
 
 				dbPrinted = true
 			} else {
@@ -90,6 +97,10 @@ func (c *Client) Connect(s proto.Server) error {
 		}
 	}
 	return nil
+}
+
+func weightedValue(i pipdb.InventoryItem) float32 {
+	return i.Info.Value / i.Info.Weight
 }
 
 func getItem(c *Client, base uint32, props ...string) interface{} {

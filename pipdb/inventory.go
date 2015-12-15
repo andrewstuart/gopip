@@ -5,23 +5,21 @@ import (
 	"encoding/json"
 )
 
-type Inventory []InventoryItem
+type Inventory struct {
+	I []InventoryItem
+	V func(InventoryItem) float32
+}
 
 func (inv *Inventory) Less(i, j int) bool {
-	ii := (*inv)[i].Info
-	ij := (*inv)[j].Info
-
-	return ii.Value/ii.Weight < ij.Value/ij.Weight
+	return inv.V(inv.I[i]) < inv.V(inv.I[j])
 }
 
 func (inv *Inventory) Len() int {
-	return len(*inv)
+	return len(inv.I)
 }
 
 func (inv *Inventory) Swap(i, j int) {
-	tmp := (*inv)[i]
-	(*inv)[i] = (*inv)[j]
-	(*inv)[j] = tmp
+	inv.I[i], inv.I[j] = inv.I[j], inv.I[i]
 }
 
 type InventoryItem struct {
