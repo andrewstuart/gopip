@@ -24,7 +24,7 @@ type Client struct {
 
 //Connect receives a server and connects to it
 func (c *Client) Connect(s proto.Server) error {
-	conn, err := net.Dial("tcp4", fmt.Sprintf("%s:%d", s.IP, proto.TCPPort))
+	conn, err := net.Dial("tcp4", fmt.Sprintf("%s:%d", s.Address, proto.TCPPort))
 	if err != nil {
 		return err
 	}
@@ -42,8 +42,6 @@ func (c *Client) Connect(s proto.Server) error {
 				break
 			}
 		}
-
-		log.Println(p.PacketType, p.Length)
 
 		switch p.PacketType {
 		case proto.KeepAlivePacket:

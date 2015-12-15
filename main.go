@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"net"
 	"os"
 
 	"github.com/andrewstuart/gopip/client"
@@ -13,8 +12,7 @@ func main() {
 	c := client.Client{}
 
 	if len(os.Args) > 1 {
-		ip := net.ParseIP(os.Args[1])
-		err := c.Connect(proto.Server{IP: ip})
+		err := c.Connect(proto.Server{Address: os.Args[1]})
 		if err != nil {
 			log.Fatal(err)
 		}

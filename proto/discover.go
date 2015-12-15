@@ -15,7 +15,7 @@ const (
 
 //Server represents a PipBoy game on a server
 type Server struct {
-	IP          net.IP
+	Address     string
 	IsBusy      bool
 	MachineType string
 }
@@ -93,7 +93,7 @@ func Discover() ([]Server, error) {
 			}
 
 			var srv Server
-			srv.IP = from.IP
+			srv.Address = from.IP.String()
 			err = json.Unmarshal(bs[:n], &srv)
 			if err != nil {
 				select {
