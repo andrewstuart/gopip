@@ -1,20 +1,23 @@
 package relay
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net"
+
+	"github.com/andrewstuart/gopip/proto"
 )
 
-var serverIP = net.IP([]byte{192, 168, 16, 12})
-var serverUDP = net.UDPAddr{IP: serverIP, Port: UDPPort}
+var serverIP = net.IP{192, 168, 16, 12}
+var serverUDP = net.UDPAddr{IP: serverIP, Port: proto.UDPPort}
 
 //Relay listens for clients and connects them to the local server.
-func (r *Client) Relay() error {
+func Relay() error {
 	go func() {
-		tcl, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.IPv4zero, Port: TCPPort})
+		tcl, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.IPv4zero, Port: proto.TCPPort})
 		if err != nil {
 			log.Println("err", err)
 		}
@@ -38,9 +41,11 @@ func (r *Client) Relay() error {
 		}
 	}()
 
-	log.Println(r.Discover())
-
-	l := r.u
+	var cli net.Addr
+	l, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4zero, Port: proto.UDPPort})
+	if err != nil {
+		return err
+	}
 
 	bs := make([]byte, 1024)
 	for {
@@ -59,18 +64,16 @@ func (r *Client) Relay() error {
 
 		switch addr.String() {
 		case "192.168.16.12:28000":
-			if r.cli != nil {
-				l.WriteToUDP(bs[:n], r.cli.(*net.UDPAddr))
+			if cli != nil {
+				l.WriteToUDP(bs[:n], cli.(*net.UDPAddr))
 			}
-		case r.cliAddr:
+		case cli.String():
 			l.WriteToUDP(bs[:n], &serverUDP)
 		default:
-			if r.cli == nil {
-				r.cli = addr
-				r.cliAddr = addr.String()
+			if cli == nil {
+				cli = addr
 				l.WriteToUDP(bs[:n], &serverUDP)
 			}
-			fmt.Printf("r = %+v\n", r)
 		}
 
 		if addr.String() != "192.168.16.15:28000" {
@@ -80,50 +83,13 @@ func (r *Client) Relay() error {
 	}
 }
 
-var db = make(map[uint32]*DataEntry, 65000)
-
 func hexSpy(w io.Writer, r io.Reader, pre string) {
 	for {
-		p, err := ReadPacket(r)
+		p, err := proto.ReadPacket(r)
 		if err != nil {
 			log.Fatal(err)
 		}
+		log.Printf("%s - Packet Type %d\n%s\n", pre, p.PacketType, hex.Dump(p.Body))
 		p.WriteTo(w)
-
-		if p.PacketType == DataUpdatePacket {
-
-			for ct := 0; ct < len(p.Body); {
-				d, n, err := UnmarshalDataEntry(p.Body[ct:])
-				if err != nil {
-					log.Println("Error unmarshalling", err)
-					fmt.Printf("d = %+v\n", d)
-					break
-				}
-
-				if d.Type == 8 {
-					v := d.Value.(InsRemove)
-					for _, ins := range v.Insert {
-						db[ins.Ref].Name = ins.Name
-					}
-				}
-
-				if _, ok := db[d.ID]; !ok {
-					db[d.ID] = d
-				} else {
-					db[d.ID].Value = d.Value
-				}
-
-				if db[d.ID].Name == "TimeHour" {
-					v := db[d.ID].Value.(float32)
-					hComp := int(v)
-					mComp := int((v - float32(hComp)) * 60)
-					fmt.Printf("%d:%d\n", hComp, mComp)
-				} else {
-					log.Println(db[d.ID])
-				}
-
-				ct += n
-			}
-		}
 	}
 }

@@ -11,13 +11,16 @@ import (
 	"sort"
 	"strconv"
 	"text/tabwriter"
+	"time"
 
+	"github.com/andrewstuart/gopip/command"
 	"github.com/andrewstuart/gopip/pipdb"
 	"github.com/andrewstuart/gopip/proto"
 )
 
 //Client listens and relays traffic
 type Client struct {
+	command.Commander
 	tCli, tSrv *net.TCPConn
 	cli        net.Addr
 	cliAddr    string
@@ -31,19 +34,23 @@ func (c *Client) Connect(s proto.Server) error {
 		return err
 	}
 
+	c.Commander.W = conn
+
 	var dbPrinted bool
 
-	var p *proto.Packet
+	var lastP, p *proto.Packet
 	for {
 		p, err = proto.ReadPacket(conn)
 		if err != nil {
+			log.Println(err)
 			if err == io.EOF {
 				log.Println("Connection closed by server. Last packet follows")
-				log.Println(hex.Dump(p.Body))
-				defer c.Connect(s)
-				break
+				log.Println(hex.Dump(lastP.Body))
+				// defer c.Connect(s)
 			}
+			break
 		}
+		lastP = p
 
 		switch p.PacketType {
 		case proto.KeepAlivePacket:
@@ -75,7 +82,7 @@ func (c *Client) Connect(s proto.Server) error {
 					myInventory = append(myInventory, inv...)
 
 				}
-				inv := pipdb.Inventory{myInventory, weightedValue}
+				inv := pipdb.Inventory{I: myInventory, V: weightedValue}
 				sort.Sort(&inv)
 
 				tw := tabwriter.NewWriter(os.Stdout, 2, 2, 3, ' ', 0)
@@ -85,8 +92,15 @@ func (c *Client) Connect(s proto.Server) error {
 				}
 
 				tw.Flush()
-
 				dbPrinted = true
+
+				// d := inv.I[0]
+				go func() {
+					time.Sleep(5 * time.Second)
+					log.Println(c.Execute(command.ClearIdle))
+				}()
+
+				// log.Println(c.Execute(command.DropItem, d.HandleID, 1, getItem(c, 0, "Inventory", "Version"), d.StackID))
 			} else {
 				for _, d := range des {
 					if d.Type == proto.ModifyEntry {
@@ -128,7 +142,7 @@ func getItem(c *Client, base uint32, props ...string) interface{} {
 func printJSON(c *Client, i uint32, props ...string) {
 	v := getItem(c, i, props...)
 
-	bs, err := json.Marshal(v)
+	bs, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		return
 	}

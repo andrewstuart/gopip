@@ -62,7 +62,10 @@ func (db *Database) Update(des []*proto.DataEntry) {
 //ToTree takes a Database item id and follows the object graph, creating a
 //nested map of key/value pairs
 func (db *Database) ToTree(item uint32) interface{} {
-	de := db.entries[item]
+	de, ok := db.entries[item]
+	if !ok {
+		return nil
+	}
 
 	js := de.Value
 

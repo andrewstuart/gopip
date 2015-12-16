@@ -23,9 +23,13 @@ func (inv *Inventory) Swap(i, j int) {
 }
 
 type InventoryItem struct {
-	Name  string `json:"text"`
-	Count int    `json:"count"`
-	Info  Info   `json:"itemCardInfoList"`
+	HandleID    int
+	StackID     []int
+	CanFavorite bool
+	IsLegendary bool
+	Name        string `json:"text"`
+	Count       int    `json:"count"`
+	Info        Info   `json:"itemCardInfoList"`
 }
 
 type Info struct {

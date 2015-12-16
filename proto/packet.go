@@ -22,8 +22,8 @@ const (
 //Packet is the PIPProtocol wire format
 type Packet struct {
 	PacketType   PacketType
-	Length       uint32
 	Body, header []byte
+	length       uint32
 }
 
 //ReadPacket returns a packet from an io.Reader.
@@ -38,15 +38,15 @@ func ReadPacket(r io.Reader) (*Packet, error) {
 	}
 
 	p.PacketType = PacketType(p.header[4])
-	err = binary.Read(bytes.NewReader(p.header[:4]), binary.LittleEndian, &p.Length)
+	err = binary.Read(bytes.NewReader(p.header[:4]), binary.LittleEndian, &p.length)
 	if err != nil {
 		return nil, err
 	}
 
-	p.Body = make([]byte, p.Length)
+	p.Body = make([]byte, p.length)
 	var tot uint32
 
-	for tot < p.Length {
+	for tot < p.length {
 		n, err := r.Read(p.Body[tot:])
 		if err != nil && err != io.EOF {
 			return nil, err
@@ -59,6 +59,18 @@ func ReadPacket(r io.Reader) (*Packet, error) {
 
 //WriteTo sends a packet to a writer
 func (p *Packet) WriteTo(w io.Writer) (int64, error) {
+	if p.header == nil {
+		p.header = make([]byte, 5)
+		p.header[0] = byte(p.PacketType)
+
+		buf := &bytes.Buffer{}
+		err := binary.Write(buf, binary.LittleEndian, uint32(len(p.Body)))
+		if err != nil {
+			return 0, err
+		}
+		buf.Read(p.header[1:])
+	}
+
 	n, err := w.Write(p.header)
 	if err != nil {
 		return int64(n), err
