@@ -59,22 +59,23 @@ func ReadPacket(r io.Reader) (*Packet, error) {
 
 //WriteTo sends a packet to a writer
 func (p *Packet) WriteTo(w io.Writer) (int64, error) {
-	if p.header == nil {
-		p.header = make([]byte, 5)
-		p.header[0] = byte(p.PacketType)
+	b := &bytes.Buffer{}
 
-		buf := &bytes.Buffer{}
-		err := binary.Write(buf, binary.LittleEndian, uint32(len(p.Body)))
+	if p.header == nil || len(p.header) == 0 {
+		err := binary.Write(b, PipByteOrder, uint32(len(p.Body)))
 		if err != nil {
 			return 0, err
 		}
-		buf.Read(p.header[1:])
+
+		b.Write([]byte{byte(p.PacketType)})
+
+		p.header = make([]byte, 5)
+		copy(p.header, b.Bytes())
+	} else {
+		b.Write(p.header)
 	}
 
-	n, err := w.Write(p.header)
-	if err != nil {
-		return int64(n), err
-	}
-	m, err := w.Write(p.Body)
-	return int64(n) + int64(m), err
+	b.Write(p.Body)
+
+	return b.WriteTo(w)
 }

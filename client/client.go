@@ -11,7 +11,6 @@ import (
 	"sort"
 	"strconv"
 	"text/tabwriter"
-	"time"
 
 	"github.com/andrewstuart/gopip/command"
 	"github.com/andrewstuart/gopip/pipdb"
@@ -94,13 +93,8 @@ func (c *Client) Connect(s proto.Server) error {
 				tw.Flush()
 				dbPrinted = true
 
-				// d := inv.I[0]
-				go func() {
-					time.Sleep(5 * time.Second)
-					log.Println(c.Execute(command.ClearIdle))
-				}()
-
-				// log.Println(c.Execute(command.DropItem, d.HandleID, 1, getItem(c, 0, "Inventory", "Version"), d.StackID))
+				d := inv.I[0]
+				log.Println(c.Execute(command.DropItem, d.HandleID, 1, getItem(c, 0, "Inventory", "Version"), d.StackID))
 			} else {
 				for _, d := range des {
 					if d.Type == proto.ModifyEntry {

@@ -1,10 +1,12 @@
 package command
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 
 	"github.com/andrewstuart/gopip/proto"
 )
@@ -72,14 +74,17 @@ func (c *Commander) Execute(cmd Type, args ...interface{}) (*Result, error) {
 		PacketType: proto.CommandPacket,
 		Body:       j,
 	}
-	p.PacketType = proto.CommandPacket
 
-	_, err = p.WriteTo(c.W)
+	n, err := p.WriteTo(c.W)
 	if err != nil {
 		return nil, err
 	}
 
-	fmt.Printf("Packet type %d\n%s", p.PacketType, hex.Dump(p.Body))
+	log.Println(n, len(j))
+
+	buf := &bytes.Buffer{}
+	p.WriteTo(buf)
+	fmt.Printf("Packet type %d\n%s", p.PacketType, hex.Dump(buf.Bytes()))
 
 	c.id++
 	r := Result{}

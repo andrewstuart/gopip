@@ -3,6 +3,7 @@ package pipdb
 import (
 	"bytes"
 	"encoding/json"
+	"math"
 )
 
 type Inventory struct {
@@ -11,7 +12,10 @@ type Inventory struct {
 }
 
 func (inv *Inventory) Less(i, j int) bool {
-	return inv.V(inv.I[i]) < inv.V(inv.I[j])
+	vi := inv.V(inv.I[i])
+	vj := inv.V(inv.I[j])
+
+	return math.IsNaN(float64(vj)) || vi < vj
 }
 
 func (inv *Inventory) Len() int {

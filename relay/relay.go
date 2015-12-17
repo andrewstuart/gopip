@@ -42,6 +42,8 @@ func Relay() error {
 	}()
 
 	var cli net.Addr
+	var cliAddr string
+
 	l, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4zero, Port: proto.UDPPort})
 	if err != nil {
 		return err
@@ -67,11 +69,12 @@ func Relay() error {
 			if cli != nil {
 				l.WriteToUDP(bs[:n], cli.(*net.UDPAddr))
 			}
-		case cli.String():
+		case cliAddr:
 			l.WriteToUDP(bs[:n], &serverUDP)
 		default:
 			if cli == nil {
 				cli = addr
+				cliAddr = addr.String()
 				l.WriteToUDP(bs[:n], &serverUDP)
 			}
 		}
