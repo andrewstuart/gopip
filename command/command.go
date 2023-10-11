@@ -71,7 +71,7 @@ func (c *Commander) Execute(cmd Type, args ...interface{}) (*Result, error) {
 	}
 
 	p := proto.Packet{
-		PacketType: proto.CommandPacket,
+		PacketType: proto.PacketTypeCommand,
 		Body:       j,
 	}
 

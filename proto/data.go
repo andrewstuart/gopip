@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"log"
 )
-import "fmt"
 
 type EntryType uint8
 
+//go:generate stringer -type=EntryType
 const (
-	BoolEntry = uint8(iota)
+	BoolEntry = EntryType(iota)
 	Int8Entry
 	UInt8Entry
 	IntEntry
@@ -22,15 +23,15 @@ const (
 	ModifyEntry
 )
 
-//DataEntry is a type that encapsulates the
+// DataEntry is a type that encapsulates the
 type DataEntry struct {
-	Type  uint8
+	Type  EntryType
 	ID    uint32
 	Name  string
 	Value interface{}
 }
 
-//PipByteOrder is the binary endianness of integers in the pip protocol
+// PipByteOrder is the binary endianness of integers in the pip protocol
 var PipByteOrder = binary.LittleEndian
 
 var (
@@ -46,8 +47,8 @@ const (
 	Bytes32Bit = 4
 )
 
-//UnmarshalDataEntry takes a byte slice and returns the number of bytes read,
-//and a possible error
+// UnmarshalDataEntry takes a byte slice and returns the number of bytes read,
+// and a possible error
 func UnmarshalDataEntry(b []byte) (de *DataEntry, ct int, err error) {
 	d := DataEntry{}
 	de = &d
@@ -56,7 +57,7 @@ func UnmarshalDataEntry(b []byte) (de *DataEntry, ct int, err error) {
 		return nil, 0, ErrShortEntryHeader
 	}
 
-	d.Type = b[0]
+	d.Type = EntryType(b[0])
 	err = binary.Read(bytes.NewReader(b[1:5]), PipByteOrder, &d.ID)
 	if err != nil {
 		return

@@ -18,7 +18,7 @@ func main() {
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "relay":
-			err := relay.Relay()
+			err := relay.Relay(ctx)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -44,6 +44,8 @@ func main() {
 	if len(servers) < 1 {
 		log.Fatal("No servers found")
 	}
+
+	log.Println("Discovered server at ", servers[0].Address)
 
 	err = c.Connect(servers[0])
 	if err != nil {

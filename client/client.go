@@ -52,9 +52,9 @@ func (c *Client) Connect(s proto.Server) error {
 		lastP = p
 
 		switch p.PacketType {
-		case proto.KeepAlivePacket:
+		case proto.PacketTypeKeepAlive:
 			p.WriteTo(conn)
-		case proto.DataUpdatePacket:
+		case proto.PacketTypeDataUpdate:
 			des, err := proto.UnmarshalDataEntries(p.Body)
 			if err != nil {
 				log.Println(err)
@@ -79,8 +79,8 @@ func (c *Client) Connect(s proto.Server) error {
 					}
 
 					myInventory = append(myInventory, inv...)
-
 				}
+
 				inv := pipdb.Inventory{I: myInventory, V: weightedValue}
 				sort.Sort(&inv)
 
