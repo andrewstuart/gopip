@@ -39,12 +39,15 @@ func (db *Database) Update(des []*proto.DataEntry) {
 				}
 			}
 		case proto.ListEntry:
-			list := de.Value.([]uint32)
+			list, ok := de.Value.([]uint32)
+			if !ok {
+				continue
+			}
 			for _, p := range list {
 				db.parents[p] = de.ID
 			}
 			if children, ok := db.children[de.ID]; ok {
-				children = append(children, list...)
+				db.children[de.ID] = append(children, list...)
 			} else {
 				db.children[de.ID] = list
 			}
