@@ -11,33 +11,35 @@ import (
 	"github.com/andrewstuart/gopip/proto"
 )
 
-// Type is the type for the command.type
-type Type int
+// CommandType is the type for the command.type
+//
+//go:generate stringer -type=CommandType
+type CommandType int
 
 // Well-known commands
 const (
-	UseItem = Type(iota)
-	DropItem
-	SetFavorite
-	ToggleComponentFavorite
-	SortInventory
-	ToggleQuest
-	SetCustomMapMarker
-	RemoveCustomMapMarker
-	CheckFastTravel
-	FastTravel
-	MoveLocalMap
-	ZoomLocalMap
-	ToggleRadioStation
-	RequestLocalMapSnapshot
-	ClearIdle
+	CommandTypeUseItem = CommandType(iota)
+	CommandTypeDropItem
+	CommandTypeSetFavorite
+	CommandTypeToggleComponentFavorite
+	CommandTypeSortInventory
+	CommandTypeToggleQuest
+	CommandTypeSetCustomMapMarker
+	CommandTypeRemoveCustomMapMarker
+	CommandTypeCheckFastTravel
+	CommandTypeFastTravel
+	CommandTypeMoveLocalMap
+	CommandTypeZoomLocalMap
+	CommandTypeToggleRadioStation
+	CommandTypeRequestLocalMapSnapshot
+	CommandTypeClearIdle
 )
 
 // Command is the type for a Pip Boy fallout 4 command
 type Command struct {
-	Type Type          `json:"type"`
-	Args []interface{} `json:"args"`
-	ID   int           `json:"id"`
+	Type CommandType `json:"type"`
+	Args []any       `json:"args"`
+	ID   int         `json:"id"`
 }
 
 // Commander is an abstraction for writing commands
@@ -47,7 +49,7 @@ type Commander struct {
 }
 
 // Execute executes a command
-func (c *Commander) Execute(cmd Type, args ...interface{}) (*Result, error) {
+func (c *Commander) Execute(cmd CommandType, args ...any) (*Result, error) {
 	if args == nil {
 		args = make([]interface{}, 0)
 	}
