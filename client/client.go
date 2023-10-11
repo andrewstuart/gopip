@@ -94,7 +94,7 @@ func (c *Client) Connect(s proto.Server) error {
 				dbPrinted = true
 
 				d := inv.I[0]
-				log.Println(c.Execute(command.DropItem, d.HandleID, 1, getItem(c, 0, "Inventory", "Version"), d.StackID))
+				log.Println(c.Execute(command.CommandTypeDropItem, d.HandleID, 1, getItem(c, 0, "Inventory", "Version"), d.StackID))
 			} else {
 				for _, d := range des {
 					if d.Type == proto.ModifyEntry {
