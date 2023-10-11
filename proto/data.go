@@ -28,7 +28,7 @@ type DataEntry struct {
 	Type  EntryType
 	ID    uint32
 	Name  string
-	Value interface{}
+	Value any
 }
 
 // PipByteOrder is the binary endianness of integers in the pip protocol
@@ -49,21 +49,16 @@ const (
 
 // UnmarshalDataEntry takes a byte slice and returns the number of bytes read,
 // and a possible error
-func UnmarshalDataEntry(b []byte) (de *DataEntry, ct int, err error) {
-	d := DataEntry{}
-	de = &d
-
+func UnmarshalDataEntry(b []byte) (*DataEntry, int, error) {
 	if len(b) < 5 {
 		return nil, 0, ErrShortEntryHeader
 	}
 
-	d.Type = EntryType(b[0])
-	err = binary.Read(bytes.NewReader(b[1:5]), PipByteOrder, &d.ID)
-	if err != nil {
-		return
+	d := DataEntry{
+		Type: EntryType(b[0]),
+		ID:   PipByteOrder.Uint32(b[1:5]),
 	}
-
-	ct = 5
+	ct := 5
 
 	defer func() {
 		if err := recover(); err != nil {
@@ -74,13 +69,13 @@ func UnmarshalDataEntry(b []byte) (de *DataEntry, ct int, err error) {
 
 	switch d.Type {
 	case BoolEntry:
-		d.Value = uint8(b[ct]) == 1
+		d.Value = b[ct] == 1
 		ct++
 	case Int8Entry:
 		var v int8
-		err = binary.Read(bytes.NewReader(b[ct:]), PipByteOrder, &v)
+		err := binary.Read(bytes.NewReader(b[ct:]), PipByteOrder, &v)
 		if err != nil {
-			return
+			return nil, ct, fmt.Errorf("error reading int8: %w", err)
 		}
 		d.Value = v
 		ct++
@@ -89,37 +84,37 @@ func UnmarshalDataEntry(b []byte) (de *DataEntry, ct int, err error) {
 		ct++
 	case IntEntry:
 		var v int32
-		err = binary.Read(bytes.NewReader(b[ct:]), PipByteOrder, &v)
+		err := binary.Read(bytes.NewReader(b[ct:]), PipByteOrder, &v)
 		if err != nil {
-			return
+			return nil, ct, fmt.Errorf("error reading int32: %w", err)
 		}
 		d.Value = v
 		ct += Bytes32Bit
 	case UIntEntry:
 		var v uint32
-		err = binary.Read(bytes.NewReader(b[ct:]), PipByteOrder, &v)
+		err := binary.Read(bytes.NewReader(b[ct:]), PipByteOrder, &v)
 		if err != nil {
-			return
+			return nil, ct, fmt.Errorf("error reading uint32: %w", err)
 		}
 		d.Value = v
 		ct += Bytes32Bit
 	case Float32Entry:
 		var v float32
-		err = binary.Read(bytes.NewReader(b[ct:]), PipByteOrder, &v)
+		err := binary.Read(bytes.NewReader(b[ct:]), PipByteOrder, &v)
 		if err != nil {
-			return
+			return nil, ct, fmt.Errorf("error reading float32: %w", err)
 		}
 		d.Value = v
 		ct += Bytes32Bit
-	case StringEntry: //string
+	case StringEntry:
 		s := getString(b[ct:])
 		ct += len(s) + 1
 		d.Value = s
-	case ListEntry: //list
+	case ListEntry:
 		var count uint16
-		err = binary.Read(bytes.NewReader(b[ct:]), PipByteOrder, &count)
+		err := binary.Read(bytes.NewReader(b[ct:]), PipByteOrder, &count)
 		if err != nil {
-			return
+			return nil, ct, fmt.Errorf("error reading list count: %w", err)
 		}
 		ct += 2
 
@@ -129,7 +124,7 @@ func UnmarshalDataEntry(b []byte) (de *DataEntry, ct int, err error) {
 		for i := 0; i < int(count); i++ {
 			err = binary.Read(rdr, PipByteOrder, &v)
 			if err != nil {
-				return
+				return nil, ct, fmt.Errorf("error reading list value %d: %w", i, err)
 			}
 			arr[i] = v
 		}
@@ -138,20 +133,17 @@ func UnmarshalDataEntry(b []byte) (de *DataEntry, ct int, err error) {
 	case ModifyEntry:
 		var insCt uint16
 		r := bytes.NewReader(b[ct:])
-		err = binary.Read(r, PipByteOrder, &insCt)
+		err := binary.Read(r, PipByteOrder, &insCt)
 		if err != nil {
-			return
+			return nil, ct, err
 		}
 		ct += 2
 
-		var dict DictEntry
-		var n int
-
 		ins := make([]DictEntry, int(insCt))
 		for i := 0; i < int(insCt); i++ {
-			dict, n, err = DictEntryFromBytes(b[ct:])
+			dict, n, err := DictEntryFromBytes(b[ct:])
 			if err != nil {
-				return
+				return nil, ct, err
 			}
 			ct += n
 			ins[i] = dict
@@ -162,7 +154,7 @@ func UnmarshalDataEntry(b []byte) (de *DataEntry, ct int, err error) {
 		var remLen uint16
 		err = binary.Read(r, PipByteOrder, &remLen)
 		if err != nil {
-			return
+			return nil, ct, err
 		}
 		ct += 2
 
@@ -171,18 +163,16 @@ func UnmarshalDataEntry(b []byte) (de *DataEntry, ct int, err error) {
 		for i := 0; i < int(remLen); i++ {
 			err = binary.Read(r, PipByteOrder, &v)
 			if err != nil {
-				return
+				return nil, ct, err
 			}
 			rem[i] = v
 			ct += 4
 		}
 		d.Value = InsRemove{ins, rem}
 	default:
-		err = fmt.Errorf("Unknown data type: %d", d.Type)
-		return
+		return nil, ct, fmt.Errorf("Unknown data type: %d", d.Type)
 	}
-
-	return
+	return &d, ct, nil
 }
 
 func UnmarshalDataEntries(bs []byte) ([]*DataEntry, error) {
@@ -191,7 +181,7 @@ func UnmarshalDataEntries(bs []byte) ([]*DataEntry, error) {
 	for ct < len(bs) {
 		de, n, err := UnmarshalDataEntry(bs[ct:])
 		if err != nil {
-			return list, err
+			return list, fmt.Errorf("error unmarshaling data entry %d: %w", len(list), err)
 		}
 		list = append(list, de)
 		ct += n
