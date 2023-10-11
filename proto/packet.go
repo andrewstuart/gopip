@@ -72,5 +72,6 @@ func (p *Packet) WriteTo(w io.Writer) (int64, error) {
 	}
 
 	b.Write(p.Body)
-	return io.Copy(w, b)
+	return b.WriteTo(w)
+	// return io.Copy(w, b)
 }
