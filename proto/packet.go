@@ -1,7 +1,6 @@
 package proto
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"io"
@@ -33,12 +32,11 @@ type Packet struct {
 
 // ReadPacket returns a packet from an io.Reader.
 func ReadPacket(r io.Reader) (*Packet, error) {
-	br := bufio.NewReader(r)
 	p := &Packet{
 		header: make([]byte, 5),
 	}
 
-	_, err := br.Read(p.header)
+	_, err := r.Read(p.header)
 	if err != nil {
 		return nil, err
 	}
