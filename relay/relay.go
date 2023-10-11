@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 
 	"github.com/andrewstuart/gopip/proto"
 	"github.com/andrewstuart/multierrgroup"
@@ -103,6 +104,29 @@ func hexSpy(w io.Writer, r io.Reader, pre string) {
 		}
 		switch p.PacketType {
 		case proto.PacketTypeKeepAlive:
+		case proto.PacketTypeDataUpdate:
+			go func() {
+				f, err := os.OpenFile("dataupdate.bin", os.O_CREATE|os.O_WRONLY|os.O_EXCL, 0644)
+				if err == nil {
+					fmt.Println(len(p.Body))
+					n, err := p.WriteTo(f)
+					if err != nil {
+						log.Println(err)
+					}
+					log.Println("wrote", n, "bytes")
+					err = f.Close()
+					if err != nil {
+						log.Println(err)
+					}
+				}
+				de, err := proto.UnmarshalDataEntries(p.Body)
+				if err != nil {
+					log.Println(err)
+				}
+				for _, e := range de {
+					fmt.Println(e.Name)
+				}
+			}()
 		default:
 			log.Printf("%s - Packet Type %s\n%s\n", pre, p.PacketType.String(), hex.Dump(p.Body))
 		}

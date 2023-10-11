@@ -2,19 +2,19 @@ package pipdb
 
 import "github.com/andrewstuart/gopip/proto"
 
-//Database is an abstraction around the pip boy database
+// Database is an abstraction around the pip boy database
 type Database struct {
 	entries  map[uint32]*proto.DataEntry
 	parents  map[uint32]uint32
 	children map[uint32][]uint32
 }
 
-//Update updates a database based on entry list
+// Update updates a database based on entry list
 func (db *Database) Update(des []*proto.DataEntry) {
 	if db.entries == nil {
-		db.entries = make(map[uint32]*proto.DataEntry, 30000)
-		db.parents = make(map[uint32]uint32, 30000)
-		db.children = make(map[uint32][]uint32, 4000)
+		db.entries = make(map[uint32]*proto.DataEntry)
+		db.parents = make(map[uint32]uint32)
+		db.children = make(map[uint32][]uint32)
 	}
 
 	for i, de := range des {
@@ -59,8 +59,8 @@ func (db *Database) Update(des []*proto.DataEntry) {
 	}
 }
 
-//ToTree takes a Database item id and follows the object graph, creating a
-//nested map of key/value pairs
+// ToTree takes a Database item id and follows the object graph, creating a
+// nested map of key/value pairs
 func (db *Database) ToTree(item uint32) interface{} {
 	de, ok := db.entries[item]
 	if !ok {
