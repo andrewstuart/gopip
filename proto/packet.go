@@ -6,10 +6,10 @@ import (
 	"io"
 )
 
-//PacketType accounts for the possible packet types
+// PacketType accounts for the possible packet types
 type PacketType uint8
 
-//Well-known packet types
+// Well-known packet types
 const (
 	KeepAlivePacket = PacketType(iota)
 	ConnecctionAcceptedPacket
@@ -19,14 +19,14 @@ const (
 	CommandPacket
 )
 
-//Packet is the PIPProtocol wire format
+// Packet is the PIPProtocol wire format
 type Packet struct {
 	PacketType   PacketType
 	Body, header []byte
 	length       uint32
 }
 
-//ReadPacket returns a packet from an io.Reader.
+// ReadPacket returns a packet from an io.Reader.
 func ReadPacket(r io.Reader) (*Packet, error) {
 	p := &Packet{
 		header: make([]byte, 5),
@@ -57,7 +57,7 @@ func ReadPacket(r io.Reader) (*Packet, error) {
 	return p, nil
 }
 
-//WriteTo sends a packet to a writer
+// WriteTo sends a packet to a writer
 func (p *Packet) WriteTo(w io.Writer) (int64, error) {
 	b := &bytes.Buffer{}
 

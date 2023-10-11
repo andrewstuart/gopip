@@ -1,19 +1,20 @@
 package proto
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 	"time"
 )
 
-//Pip boy ports
+// Pip boy ports
 const (
 	UDPPort = 28000
 	TCPPort = 27000
 )
 
-//Server represents a PipBoy game on a server
+// Server represents a PipBoy game on a server
 type Server struct {
 	Address     string
 	IsBusy      bool
@@ -22,14 +23,14 @@ type Server struct {
 
 var bcAddr = &net.UDPAddr{IP: net.IPv4bcast, Port: UDPPort}
 
-//AutoDiscover is the command for autodiscovery
+// AutoDiscover is the command for autodiscovery
 const AutoDiscover string = `{"cmd": "autodiscover"}`
 
-//Discover returns a list of servers and their status
-func Discover() ([]Server, error) {
+// Discover returns a list of servers and their status
+func Discover(ctx context.Context) ([]Server, error) {
 	servers := make([]Server, 0, 1)
 
-	laddr := &net.UDPAddr{IP: net.IPv4zero, Port: UDPPort}
+	laddr := &net.UDPAddr{IP: net.IPv4zero, Port: UDPPort + 1}
 
 	l, err := net.ListenUDP("udp4", laddr)
 	if err != nil {
@@ -71,6 +72,8 @@ func Discover() ([]Server, error) {
 			n, from, err := l.ReadFromUDP(bs)
 			if err != nil {
 				select {
+				case <-ctx.Done():
+					return
 				case errC <- err:
 				case <-time.After(10 * time.Millisecond):
 				}
@@ -86,6 +89,7 @@ func Discover() ([]Server, error) {
 
 			if err != nil {
 				select {
+				case <-ctx.Done():
 				case errC <- err:
 				case <-time.After(10 * time.Millisecond):
 				}
@@ -97,6 +101,7 @@ func Discover() ([]Server, error) {
 			err = json.Unmarshal(bs[:n], &srv)
 			if err != nil {
 				select {
+				case <-ctx.Done():
 				case errC <- err:
 				case <-time.After(10 * time.Millisecond):
 				}
@@ -104,6 +109,7 @@ func Discover() ([]Server, error) {
 			}
 
 			select {
+			case <-ctx.Done():
 			case srvC <- srv:
 			case <-time.After(10 * time.Millisecond):
 				return
@@ -113,10 +119,10 @@ func Discover() ([]Server, error) {
 
 	for {
 		select {
-		case <-time.After(250 * time.Millisecond):
-			return servers, nil
+		case <-ctx.Done():
 		case s := <-srvC:
 			servers = append(servers, s)
+			return servers, nil
 		case err := <-errC:
 			return servers, err
 		}

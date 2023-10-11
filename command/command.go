@@ -11,10 +11,10 @@ import (
 	"github.com/andrewstuart/gopip/proto"
 )
 
-//Type is the type for the command.type
+// Type is the type for the command.type
 type Type int
 
-//Well-known commands
+// Well-known commands
 const (
 	UseItem = Type(iota)
 	DropItem
@@ -33,20 +33,20 @@ const (
 	ClearIdle
 )
 
-//Command is the type for a Pip Boy fallout 4 command
+// Command is the type for a Pip Boy fallout 4 command
 type Command struct {
 	Type Type          `json:"type"`
 	Args []interface{} `json:"args"`
 	ID   int           `json:"id"`
 }
 
-//Commander is an abstraction for writing commands
+// Commander is an abstraction for writing commands
 type Commander struct {
 	W  io.ReadWriter
 	id int
 }
 
-//Execute executes a command
+// Execute executes a command
 func (c *Commander) Execute(cmd Type, args ...interface{}) (*Result, error) {
 	if args == nil {
 		args = make([]interface{}, 0)
@@ -106,7 +106,7 @@ func (c *Commander) Execute(cmd Type, args ...interface{}) (*Result, error) {
 	return &r, nil
 }
 
-//Result is the response for a command
+// Result is the response for a command
 type Result struct {
 	Allowed bool
 	Success bool

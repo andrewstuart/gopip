@@ -8,9 +8,11 @@ import (
 	_ "github.com/andrewstuart/gopip/command"
 	"github.com/andrewstuart/gopip/proto"
 	"github.com/andrewstuart/gopip/relay"
+	"github.com/gopuff/morecontext"
 )
 
 func main() {
+	ctx := morecontext.ForSignals()
 	c := client.Client{}
 
 	if len(os.Args) > 1 {
@@ -22,26 +24,29 @@ func main() {
 			}
 			return
 		case "connect", "c", "conn":
+			addr := "localhost"
 			if len(os.Args) > 2 {
-				err := c.Connect(proto.Server{Address: os.Args[2]})
-				if err != nil {
-					log.Fatal(err)
-				}
+				addr = os.Args[2]
+			}
+			err := c.Connect(proto.Server{Address: addr})
+			if err != nil {
+				log.Fatal(err)
 			}
 		}
+		return
+	}
 
-		servers, err := proto.Discover()
-		if err != nil {
-			log.Fatal(err)
-		}
+	servers, err := proto.Discover(ctx)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-		if len(servers) < 1 {
-			log.Fatal("No servers found")
-		}
+	if len(servers) < 1 {
+		log.Fatal("No servers found")
+	}
 
-		err = c.Connect(servers[0])
-		if err != nil {
-			log.Fatal(err)
-		}
+	err = c.Connect(servers[0])
+	if err != nil {
+		log.Fatal(err)
 	}
 }

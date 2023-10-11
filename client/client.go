@@ -17,7 +17,7 @@ import (
 	"github.com/andrewstuart/gopip/proto"
 )
 
-//Client listens and relays traffic
+// Client listens and relays traffic
 type Client struct {
 	command.Commander
 	tCli, tSrv *net.TCPConn
@@ -26,7 +26,7 @@ type Client struct {
 	db         pipdb.Database
 }
 
-//Connect receives a server and connects to it
+// Connect receives a server and connects to it
 func (c *Client) Connect(s proto.Server) error {
 	conn, err := net.Dial("tcp4", fmt.Sprintf("%s:%d", s.Address, proto.TCPPort))
 	if err != nil {
